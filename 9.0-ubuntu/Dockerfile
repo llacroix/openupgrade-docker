@@ -50,15 +50,13 @@ ENV ODOO_VERSION 9.0
 ARG ODOO_RELEASE=20190424
 RUN set -x; \
         curl -o odoo.tar.gz -sSL https://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/odoo_${ODOO_VERSION}c.${ODOO_RELEASE}.tar.gz \
-        && tar xvfz odoo.tar.gz
-
-RUN set -x; \
-        apt-get update \
-        && apt-get install -y python-psutil
-
-RUN set -x; \
-        cd odoo-${ODOO_RELEASE} \
-        && python setup.py install
+        && tar xvfz odoo.tar.gz \
+        && apt-get update \
+        && apt-get install -y python-psutil \
+        && cd odoo-${ODOO_RELEASE} \
+        && python setup.py install \
+        && cd / \
+        && rm -rf /odoo-${ODOO_RELEASE}
         # && apt-get -y install -f --no-install-recommends
         # && rm -rf /var/lib/apt/lists/* odoo.deb
 
