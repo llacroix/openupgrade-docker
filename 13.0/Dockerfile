@@ -62,7 +62,7 @@ RUN set -x;\
 
 # Install Odoo
 ENV ODOO_VERSION 13.0
-ARG ODOO_RELEASE=20190731
+ARG ODOO_RELEASE=20190814
 RUN set -x; \
         curl -o odoo.deb -sSL --connect-timeout 1000 --max-time 1000 http://nightly.odoo.com/master/nightly/deb/odoo_${ODOO_VERSION}alpha1.${ODOO_RELEASE}_all.deb \
         && dpkg --force-depends -i odoo.deb \
