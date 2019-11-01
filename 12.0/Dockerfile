@@ -1,41 +1,36 @@
-FROM debian:stretch
+FROM ubuntu:bionic
 LABEL maintainer="Odoo S.A. <info@odoo.com>"
 
 # Generate locale C.UTF-8 for postgres and general locale data
 ENV LANG C.UTF-8
 
-# Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
+ARG WK_CHK=db48fa1a043309c4bfe8c8e0e38dc06c183f821599dd88d4e3cea47c5a5d4cd3
+
+# Install some dependencies python3.7
 RUN set -x; \
         apt-get update \
         && apt-get install -y --no-install-recommends \
-            ca-certificates \
-            curl \
-            dirmngr \
-            fonts-noto-cjk \
-            gnupg \
-            libssl1.0-dev \
-            node-less \
-            python3-pip \
-            python3-pyldap \
-            python3-qrcode \
-            python3-renderpm \
+            python3.6 \
+            python3-wheel \
             python3-setuptools \
-            python3-vobject \
-            python3-watchdog \
-            xz-utils \
-            netcat \
-        && curl -o wkhtmltox.deb -sSL https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.stretch_amd64.deb \
-        && echo '7e35a63f9db14f93ec7feeb0fce76b30c08f2057 wkhtmltox.deb' | sha1sum -c - \
+            python3-pip \
+            libpython3.6 \
+            curl \
+            gnupg \
+            libpq-dev \
+            libsasl2-2 \
+            libldap-2.4-2 \
+        && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1 \
+        #&& update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 2 \
+        && update-alternatives --install /usr/bin/pip pip3 /usr/bin/pip3 1 \
+        && curl -o wkhtmltox.deb -sSL https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.bionic_amd64.deb \
         && dpkg --force-depends -i wkhtmltox.deb\
         && apt-get -y install -f --no-install-recommends \
         && rm -rf /var/lib/apt/lists/* wkhtmltox.deb
 
+# Install latest postgresql-client
 RUN set -x; \
-       pip3 install remote-pdb
-
-# install latest postgresql-client
-RUN set -x; \
-        echo 'deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main' > etc/apt/sources.list.d/pgdg.list \
+        echo 'deb https://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main' > etc/apt/sources.list.d/pgdg.list \
         && export GNUPGHOME="$(mktemp -d)" \
         && repokey='B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8' \
         && gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "${repokey}" \
@@ -46,49 +41,56 @@ RUN set -x; \
         && apt-get install -y postgresql-client \
         && rm -rf /var/lib/apt/lists/*
 
-# Install rtlcss (on Debian stretch)
-RUN set -x;\
-    echo "deb http://deb.nodesource.com/node_8.x stretch main" > /etc/apt/sources.list.d/nodesource.list \
-    && export GNUPGHOME="$(mktemp -d)" \
-    && repokey='9FD3B784BC1C6FC31A8A0A1C1655A0AB68576280' \
-    && gpg --batch --keyserver keyserver.ubuntu.com --recv-keys "${repokey}" \
-    && gpg --armor --export "${repokey}" | apt-key add - \
-    && gpgconf --kill all \
-    && rm -rf "$GNUPGHOME" \
-    && apt-get update \
-    && apt-get install -y nodejs \
-    && npm install -g rtlcss \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Odoo
+# Install Odoo Including things from sources
 ENV ODOO_VERSION 12.0
-ARG ODOO_RELEASE=20190918
+ARG ODOO_RELEASE=20190919
+ARG ODOO_ARCHIVE=odoo-${ODOO_VERSION}.post${ODOO_RELEASE}
+ARG URL=https://github.com/OCA/OpenUpgrade.git
 RUN set -x; \
-        curl -o odoo.deb -sSL https://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/odoo_${ODOO_VERSION}.${ODOO_RELEASE}_all.deb \
-        && dpkg --force-depends -i odoo.deb \
-        && apt-get update \
-        && apt-get -y install -f --no-install-recommends \
-        && rm -rf /var/lib/apt/lists/* odoo.deb
+        apt-get update \
+        && apt-get install -y --no-install-recommends \
+            build-essential \
+            python3.6-dev \
+            libsasl2-dev \
+            libldap2-dev \
+            git \
+        && pip3 install \
+            psycogreen \
+        && git clone --depth 1 -b ${ODOO_VERSION} ${URL} /opt/odoo \
+        && cd /opt/odoo \
+        && echo 'recursive-include odoo *.py' >> MANIFEST.in \
+        && echo 'recursive-include odoo *.txt' >> MANIFEST.in \
+        && mv addons/* odoo/addons \
+        && pip3 install . \
+        && pip3 install --ignore-installed git+https://github.com/OCA/openupgradelib.git@master \
+        && pip3 install -U "pyyaml == 3.12" \
+        && pip3 install -U \
+                xlrd \
+                num2words \
+        && apt-get --purge remove -y \
+            build-essential \
+            python3.6-dev \
+            libsasl2-dev \
+            libldap2-dev \
+            git \
+        && apt-get autoremove -y \
+        && cd / \
+        && rm -rf /opt/odoo \
+        && rm -rf /var/lib/apt/lists/*
 
-# Copy entrypoint script and Odoo configuration file
-RUN pip3 install num2words xlwt
-COPY ./entrypoint.sh /
+VOLUME /etc/odoo
+VOLUME /var/lib/odoo
+
 COPY ./odoo.conf /etc/odoo/
-RUN chown odoo /etc/odoo/odoo.conf
+COPY ./entrypoint.py /
 
-# Mount /var/lib/odoo to allow restoring filestore and /mnt/extra-addons for users addons
-RUN mkdir -p /mnt/extra-addons \
-        && chown -R odoo /mnt/extra-addons
-VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
+RUN groupadd -r -g 109 odoo \
+    && useradd -r -u 105 -g odoo -b /var/lib -m odoo \
+    && chown odoo /etc/odoo/odoo.conf
 
-# Expose Odoo services
-EXPOSE 8069 8071
-
-# Set the default config file
 ENV ODOO_RC /etc/odoo/odoo.conf
 
-# Set default user when running the container
 USER odoo
+#ENTRYPOINT ["/entrypoint.py"]
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["odoo"]
+cmd ["odoo"]
