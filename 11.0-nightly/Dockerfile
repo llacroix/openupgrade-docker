@@ -41,8 +41,8 @@ RUN set -x; \
         && rm -rf /var/lib/apt/lists/*
 
 # Install Odoo Including things from sources
-ENV ODOO_VERSION 12.0
-ENV ODOO_RELEASE=20191025
+ENV ODOO_VERSION 11.0
+ENV ODOO_RELEASE=20191112
 ARG ODOO_ARCHIVE=odoo_${ODOO_VERSION}.${ODOO_RELEASE}.tar.gz
 ARG URL=https://github.com/OCA/OpenUpgrade.git
 RUN set -x; \
@@ -52,7 +52,7 @@ RUN set -x; \
             build-essential \
             python3.6-dev \
             libsasl2-dev \
-            libldap2-dev  \
+            libldap2-dev ruby-sass \
         && pip install \
             psycogreen \
             num2words  \
@@ -103,18 +103,18 @@ expose 8071
 
 USER odoo
 
-LABEL version="12.0"
-LABEL release="20191025"
+LABEL version="11.0"
+LABEL release="20191112"
 
-LABEL org.opencontainers.image.created="2019-11-12T19:11:10.511200"
+LABEL org.opencontainers.image.created="2019-11-12T19:11:10.512175"
 LABEL org.opencontainers.image.url="https://hub.docker.com/r/llacroix/odoo"
 LABEL org.opencontainers.image.authors="Archeti <info@archeti.ca>"
 LABEL org.opencontainers.image.documentation="https://github.com/llacroix/odoo-docker"
 LABEL org.opencontainers.image.source="https://github.com/llacroix/odoo-docker"
-LABEL org.opencontainers.image.version="12.0"
+LABEL org.opencontainers.image.version="11.0"
 LABEL org.opencontainers.image.vendor="ArcheTI"
-LABEL org.opencontainers.image.ref.name="12.0"
-LABEL org.opencontainers.image.title="Odoo 12.0"
+LABEL org.opencontainers.image.ref.name="11.0-nightly"
+LABEL org.opencontainers.image.title="Odoo 11.0"
 LABEL org.opencontainers.image.description="Full featured odoo image that make odoo deployment fun and secure."
 
 ENTRYPOINT ["/entrypoint.py"]
